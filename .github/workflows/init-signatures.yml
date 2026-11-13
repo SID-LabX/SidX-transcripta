@@ -1,0 +1,43 @@
+name: "Auto-Init Signatures Branch"
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allows manual 1-click run from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  init-signatures:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Check and create signatures branch
+        run: |
+          # 1. Check if origin already has the signatures branch
+          if git ls-remote --exit-code --heads origin signatures; then
+            echo "signatures branch already exists. Nothing to do!"
+            exit 0
+          fi
+
+          echo "Signatures branch missing. Bootstrapping it automatically..."
+
+          # 2. Configure bot identity
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 3. Create orphan branch and blank cla.json
+          git checkout --orphan signatures
+          git rm -rf . > /dev/null 2>&1 || true
+          echo '{"signedContributors": []}' > cla.json
+          git add cla.json
+          git commit -m "Initialize cla.json for CLA Assistant"
+
+          # 4. Push to remote
+          git push origin signatures
+          echo "Successfully initialized signatures branch!"
